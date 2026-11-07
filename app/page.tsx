@@ -1,528 +1,314 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from "@/app/lib/supabase";
-import { Bouquet, BOUQUETS } from "@/app/lib/bouquets";
-import SurpriseDeliveryModal from "@/app/components/SurpriseDeliveryModal";
+import { useEffect, useState } from "react";
 
-interface SentGift {
-  id: string;
-  recipient: string;
-  flowerName: string;
-  bouquetId?: string;
-  date: string;
-}
+type Language = "en" | "fr";
+type Stage = "welcome" | "garden" | "riddle" | "bouquet" | "letter" | "ending";
+
+const copy = {
+  en: {
+    languageLabel: "Language",
+    eyebrow: "A private little world",
+    welcomeTitle: "A Little Universe for Hajar",
+    welcomeText: "A quiet garden, a few little mysteries, and a letter that has been waiting just for you.",
+    enter: "Enter your universe",
+    madeFor: "Made with care for",
+    gardenTitle: "Follow the little lights",
+    gardenText: "Every star in this garden holds a small reminder. Open all three, then follow the path ahead.",
+    stars: [
+      { title: "Your curiosity", text: "I love that your mind is always exploring, questioning, and finding joy in the little things." },
+      { title: "Your courage", text: "May you always have the courage to chase what makes you feel alive, even when the path is new." },
+      { title: "Your kind of calm", text: "You do not have to be loud to leave a beautiful mark. Some of the brightest things are gentle." }
+    ],
+    opened: "Discovered",
+    openStar: "Open",
+    openStarFr: "Ouvrir",
+    gardenProgress: "lights discovered",
+    gardenContinue: "Follow the starlight",
+    riddleEyebrow: "A little key, made of numbers",
+    riddleTitle: "A riddle for that curious mind",
+    riddleText: "A tiny equation is guarding the next part of your journey. Find its two roots.",
+    equationLabel: "Solve this",
+    choices: ["1 and 6", "2 and 3", "3 and 4"],
+    wrongAnswer: "Not quite. Take another look; the answer is closer than it seems.",
+    correctAnswer: "Exactly. The next little wonder is yours to uncover.",
+    unlock: "Unlock the next page",
+    bouquetEyebrow: "A little something for you",
+    bouquetTitle: "A bouquet that speaks softly",
+    bouquetText: "For the gentleness you bring into the world, and for all the beautiful things still waiting to find you.",
+    openLetter: "Open your letter",
+    letterEyebrow: "A few words from the heart",
+    letterTitle: "Dear Hajar,",
+    letterParagraphs: [
+      "I wanted to make you a small place in the world that feels peaceful, warm, and a little magical. A place that reminds you how much light you carry, even on the days you do not notice it.",
+      "I admire your curious mind, your strength, and the way you find your own joy in the things you love. I hope you keep making room for new adventures, big dreams, and all the little moments that make life feel like yours.",
+      "Whatever the road brings, I hope you never forget that you deserve gentleness, peace, and beautiful beginnings. I believe in you, and I will be cheering you on, one step at a time."
+    ],
+    signoff: "With love,",
+    sender: "Fahd",
+    lastButton: "There is one last secret",
+    endingEyebrow: "The universe is yours",
+    endingTitle: "Keep finding your wonder",
+    endingText: "May there always be a sea to wander beside, water to dive into, open skies to ride beneath, and new challenges that make your eyes light up. This is only one little page in all the beautiful chapters still ahead of you.",
+    finalLine: "You deserve a life that feels as lovely as the things you love.",
+    restart: "Return to the beginning",
+    footer: "A little universe, made with care.",
+    progress: ["The garden", "The riddle", "The bouquet", "The letter", "The secret"]
+  },
+  fr: {
+    languageLabel: "Langue",
+    eyebrow: "Un petit monde rien qu'à toi",
+    welcomeTitle: "Un petit univers pour Hajar",
+    welcomeText: "Un jardin tranquille, quelques mystères et une lettre qui attendait simplement d'être découverte.",
+    enter: "Entrer dans ton univers",
+    madeFor: "Créé avec tendresse pour",
+    gardenTitle: "Suis les petites lumières",
+    gardenText: "Chaque étoile de ce jardin cache un petit mot. Découvre les trois, puis poursuis ton chemin.",
+    stars: [
+      { title: "Ta curiosité", text: "J'aime ton esprit curieux, toujours prêt à explorer, à poser des questions et à trouver de la joie dans les petits détails." },
+      { title: "Ton courage", text: "J'espère que tu garderas toujours le courage de poursuivre ce qui te fait vibrer, même lorsque le chemin est nouveau." },
+      { title: "Ta douceur", text: "Tu n'as pas besoin de faire du bruit pour laisser une belle empreinte. Certaines des plus grandes lumières sont douces." }
+    ],
+    opened: "Découvert",
+    openStar: "Ouvrir",
+    openStarFr: "Ouvrir",
+    gardenProgress: "lumières découvertes",
+    gardenContinue: "Suivre la lumière",
+    riddleEyebrow: "Une petite clé faite de nombres",
+    riddleTitle: "Une énigme pour ton esprit curieux",
+    riddleText: "Une petite équation protège la suite de ton aventure. Trouve ses deux racines.",
+    equationLabel: "À résoudre",
+    choices: ["1 et 6", "2 et 3", "3 et 4"],
+    wrongAnswer: "Pas tout à fait. Regarde encore ; la réponse est plus proche qu'il n'y paraît.",
+    correctAnswer: "Exactement. La prochaine petite merveille n'attend que toi.",
+    unlock: "Découvrir la suite",
+    bouquetEyebrow: "Une petite attention pour toi",
+    bouquetTitle: "Un bouquet tout en douceur",
+    bouquetText: "Pour la douceur que tu apportes au monde et pour toutes les belles choses qui attendent encore de te rencontrer.",
+    openLetter: "Ouvrir ta lettre",
+    letterEyebrow: "Quelques mots du cœur",
+    letterTitle: "Chère Hajar,",
+    letterParagraphs: [
+      "Je voulais créer pour toi un petit endroit dans ce monde, paisible, chaleureux et un peu magique. Un endroit qui te rappelle toute la lumière que tu portes, même les jours où tu ne la remarques pas.",
+      "J'admire ta curiosité, ta force et cette façon bien à toi de trouver de la joie dans les choses que tu aimes. J'espère que tu laisseras toujours de la place aux nouvelles aventures, aux grands rêves et à tous ces petits instants qui rendent la vie unique.",
+      "Quel que soit le chemin, n'oublie jamais que tu mérites la douceur, la paix et de magnifiques nouveaux départs. Je crois en toi et je t'encouragerai, un pas après l'autre."
+    ],
+    signoff: "Avec affection,",
+    sender: "Fahd",
+    lastButton: "Il reste un dernier secret",
+    endingEyebrow: "Cet univers t'appartient",
+    endingTitle: "Continue à t'émerveiller",
+    endingText: "Je te souhaite toujours une mer près de laquelle rêver, de l'eau dans laquelle plonger, de grands horizons à parcourir à cheval et de nouveaux défis qui feront briller tes yeux. Ceci n'est qu'une petite page parmi tous les beaux chapitres qui t'attendent.",
+    finalLine: "Tu mérites une vie aussi belle que les choses que tu aimes.",
+    restart: "Revenir au début",
+    footer: "Un petit univers, créé avec tendresse.",
+    progress: ["Le jardin", "L'énigme", "Le bouquet", "La lettre", "Le secret"]
+  }
+} as const;
+
+const starSymbols = ["01", "02", "03"];
 
 export default function Home() {
-  const [selectedBouquet, setSelectedBouquet] = useState<Bouquet | null>(null);
-  const [isDrafting, setIsDrafting] = useState(false);
-  const [recipient, setRecipient] = useState('');
-  const [message, setMessage] = useState('');
-  const [sender, setSender] = useState('');
-  const [generatedLink, setGeneratedLink] = useState('');
-  const [currentShortId, setCurrentShortId] = useState('');
+  const [language, setLanguage] = useState<Language>("en");
+  const [stage, setStage] = useState<Stage>("welcome");
+  const [revealedStars, setRevealedStars] = useState<number[]>([]);
+  const [answer, setAnswer] = useState<number | null>(null);
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
-  
-  const [sentGifts, setSentGifts] = useState<SentGift[]>([]);
-
-  // WhatsApp Surprise Modal States
-  const [isSurpriseModalOpen, setIsSurpriseModalOpen] = useState(false);
-  const [modalBouquet, setModalBouquet] = useState<Bouquet | null>(null);
-  const [modalShortId, setModalShortId] = useState<string>('');
-  const [modalRecipient, setModalRecipient] = useState<string>('');
+  const t = copy[language];
+  const stages: Stage[] = ["garden", "riddle", "bouquet", "letter", "ending"];
+  const currentProgress = stages.indexOf(stage);
 
   useEffect(() => {
-    const history = localStorage.getItem('pixel_bouquet_history');
-    if (history) {
-      try {
-        setSentGifts(JSON.parse(history));
-      } catch (e) {
-        console.error('Error parsing history', e);
-      }
-    }
-  }, []);
+    document.documentElement.lang = language;
+  }, [language]);
 
-  const isWhatsAppEnabled = process.env.NEXT_PUBLIC_ENABLE_WHATSAPP !== 'false';
+  function revealStar(index: number) {
+    setRevealedStars((current) => current.includes(index) ? current : [...current, index]);
+  }
 
-  const isFormValid =
-    recipient.trim().length > 0 &&
-    message.trim().length > 0 &&
-    sender.trim().length > 0;
-  const isGenerateDisabled = !selectedBouquet || !isFormValid || isSaving;
-
-  const handleGenerateLink = async () => {
-    if (isGenerateDisabled || !selectedBouquet) return;
-
-    setIsSaving(true);
-    const shortId = Math.random().toString(36).substring(2, 9);
-
-    const trimmedRecipient = recipient.trim();
-    const trimmedMessage = message.trim();
-    const trimmedSender = sender.trim();
-
-    const { error } = await supabase
-      .from('bouquets')
-      .insert([
-        {
-          short_id: shortId,
-          bouquet_id: selectedBouquet.id,
-          recipient: trimmedRecipient,
-          message: trimmedMessage,
-          sender: trimmedSender,
-        }
-      ]);
-
-    setIsSaving(false);
-
-    if (error) {
-      console.error("Error saving to database:", error);
-      alert("Something went wrong saving your bouquet! Check the console.");
-      return;
-    }
-
-    const newGift: SentGift = {
-      id: shortId,
-      recipient: trimmedRecipient,
-      flowerName: selectedBouquet.name,
-      bouquetId: selectedBouquet.id,
-      date: new Date().toISOString(),
-    };
-
-    const updatedHistory = [newGift, ...sentGifts];
-    setSentGifts(updatedHistory);
-    localStorage.setItem('pixel_bouquet_history', JSON.stringify(updatedHistory));
-
-    setCurrentShortId(shortId);
-    setGeneratedLink(`${window.location.origin}/gift/${shortId}`);
-  };
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(generatedLink);
-    setIsCopied(true);
-
-    setTimeout(() => {
-      setIsCopied(false);
-    }, 2800);
-  };
-
-  // Open Surprise Modal from Editor
-  const handleOpenSurpriseModalFromEditor = () => {
-    if (!selectedBouquet) return;
-    setModalBouquet(selectedBouquet);
-    setModalShortId(currentShortId);
-    setModalRecipient(recipient.trim());
-    setIsSurpriseModalOpen(true);
-  };
-
-  // Open Surprise Modal from History Card
-  const handleOpenSurpriseModalFromHistory = (gift: SentGift) => {
-    const bouquetObj = BOUQUETS.find(b => b.id === gift.bouquetId || b.name === gift.flowerName) || BOUQUETS[0];
-    setModalBouquet(bouquetObj);
-    setModalShortId(gift.id);
-    setModalRecipient(gift.recipient);
-    setIsSurpriseModalOpen(true);
-  };
-
-  // On successful delivery inside modal
-  const handleSurpriseSuccess = (deliveredShortId: string) => {
-    if (selectedBouquet) {
-      const trimmedRecipient = recipient.trim() || modalRecipient || 'Someone Special';
-      const existing = sentGifts.find(g => g.id === deliveredShortId);
-      if (!existing) {
-        const newGift: SentGift = {
-          id: deliveredShortId,
-          recipient: trimmedRecipient,
-          flowerName: selectedBouquet.name,
-          bouquetId: selectedBouquet.id,
-          date: new Date().toISOString(),
-        };
-        const updatedHistory = [newGift, ...sentGifts];
-        setSentGifts(updatedHistory);
-        localStorage.setItem('pixel_bouquet_history', JSON.stringify(updatedHistory));
-      }
-      setCurrentShortId(deliveredShortId);
-      setGeneratedLink(`${window.location.origin}/gift/${deliveredShortId}`);
-    }
-  };
+  function restart() {
+    setStage("welcome");
+    setRevealedStars([]);
+    setAnswer(null);
+  }
 
   return (
-    <main className="min-h-screen bg-[#FDFBF7] text-[#4A3B32] p-6 md:p-12 font-sans relative overflow-hidden selection:bg-[#E1A9A0] selection:text-white">
+    <main className="universe-page">
+      <div className="universe-sky" aria-hidden="true">
+        <span className="sky-glow sky-glow-one" />
+        <span className="sky-glow sky-glow-two" />
+        <span className="sky-moon" />
+        <span className="sky-star sky-star-one" />
+        <span className="sky-star sky-star-two" />
+        <span className="sky-star sky-star-three" />
+        <span className="sky-star sky-star-four" />
+        <span className="sky-star sky-star-five" />
+        <span className="sky-star sky-star-six" />
+        <span className="sky-star sky-star-seven" />
+        <span className="sky-star sky-star-eight" />
+      </div>
 
-      {/* Premium Ambient Backgrounds */}
-      <div className="absolute -top-20 -left-20 w-[40vw] h-[40vw] bg-rose-200/20 rounded-full mix-blend-multiply filter blur-[100px] pointer-events-none"></div>
-      <div className="absolute top-1/4 right-0 w-[30vw] h-[30vw] bg-amber-100/30 rounded-full mix-blend-multiply filter blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-0 left-1/3 w-[50vw] h-[50vw] bg-[#E8DDD3]/30 rounded-full mix-blend-multiply filter blur-[150px] pointer-events-none"></div>
-
-      {/* Custom Keyframes */}
-      <style dangerouslySetInnerHTML={{__html: `
-          @keyframes float {
-              0% { transform: translateY(0px); }
-              50% { transform: translateY(-12px); }
-              100% { transform: translateY(0px); }
-          }
-          .animate-float {
-              animation: float 5s ease-in-out infinite;
-          }
-          .animate-float-delayed {
-              animation: float 6s ease-in-out 1.5s infinite;
-          }
-          .bg-noise {
-              background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-          }
-          @keyframes shimmer {
-              100% { transform: translateX(100%); }
-          }
-      `}} />
-
-      {/* Toast Notification */}
-      {isCopied && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-10 duration-500 ease-out">
-          <div className="bg-white/80 backdrop-blur-xl border border-white text-[#4A3B32] px-8 py-4 rounded-full shadow-[0_10px_40px_rgba(160,100,80,0.15)] flex items-center gap-4">
-            <div className="w-9 h-9 bg-gradient-to-tr from-[#E8F3E9] to-white rounded-full flex items-center justify-center text-[#849F86] shadow-sm border border-[#849F86]/20">
-              <span className="text-xl">✓</span>
-            </div>
-            <div className="flex flex-col items-start" dir="rtl">
-              <span className="font-bold text-sm tracking-tight text-[#4A3B32]">تم نسخ الرابط!</span>
-              <span className="text-xs text-gray-500 font-medium">جاهز دلوقتي تبعت هديتك السحرية</span>
-            </div>
-          </div>
+      <header className="universe-header">
+        <a className="universe-mark" href="#top" onClick={(event) => { event.preventDefault(); restart(); }}>
+          <span className="mark-orbit" aria-hidden="true">✦</span>
+          <span>HAJAR&apos;S UNIVERSE</span>
+        </a>
+        <div className="language-switch" aria-label={t.languageLabel}>
+          <button className={language === "en" ? "language-active" : ""} onClick={() => setLanguage("en")} aria-pressed={language === "en"}>EN</button>
+          <span aria-hidden="true">/</span>
+          <button className={language === "fr" ? "language-active" : ""} onClick={() => setLanguage("fr")} aria-pressed={language === "fr"}>FR</button>
         </div>
-      )}
-
-      {/* Header */}
-      <header className="mb-16 text-center relative z-10 flex flex-col items-center">
-        <span className="text-[#C87E6F] text-[10px] font-bold uppercase tracking-[0.3em] mb-4 flex items-center gap-4">
-          <span className="w-8 h-px bg-[#C87E6F]/50"></span>
-          Pixel Bouquet
-          <span className="w-8 h-px bg-[#C87E6F]/50"></span>
-        </span>
-        <h1 className="text-4xl md:text-5xl font-bold text-[#3D2B1F] font-serif mb-4" dir="rtl">اعمل ذكرى متتنسيش</h1>
-        <p className="text-[#8A7A6F] text-sm md:text-base font-medium tracking-wide" dir="rtl">اختار باقة تعبر بيها عن اللي في قلبك بجد</p>
       </header>
 
-      {/* VIEW 1: THE PREMIUM GALLERY */}
-      {!isDrafting && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-6xl mx-auto relative z-10">
-          {BOUQUETS.map((bouquet) => (
-            <div 
-              key={bouquet.id} 
-              className="bg-white/40 backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 flex flex-col items-center text-center transition-all duration-700 hover:-translate-y-4 hover:shadow-[0_20px_40px_rgba(160,100,80,0.1)] hover:bg-white/60 cursor-pointer group overflow-hidden"
-              onClick={() => {
-                setSelectedBouquet(bouquet);
-                setIsDrafting(true);
-                setCurrentShortId('');
-                setGeneratedLink('');
-              }}
-            >
-              {/* Image Container */}
-              <div className="relative w-full h-56 mb-8 flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-radial from-rose-100/40 to-transparent blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <img
-                  src={bouquet.image}
-                  alt={bouquet.name}
-                  className="w-48 h-48 object-contain relative z-10 drop-shadow-[0_10px_15px_rgba(160,100,80,0.2)] group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-700"
-                />
-              </div>
-              
-              <div className="flex flex-col items-center w-full z-10">
-                <span className="text-[10px] text-[#C87E6F] font-bold uppercase tracking-widest mb-2">{bouquet.name}</span>
-                <h3 className="font-bold text-lg text-[#3D2B1F] font-serif mb-3" dir="rtl">{bouquet.description.split(' ')[0]} {bouquet.description.split(' ')[1]}...</h3>
-                <p className="text-xs text-[#8A7A6F] line-clamp-2 px-2 leading-relaxed mb-6 transition-all duration-500 group-hover:opacity-0" dir="rtl">{bouquet.meaning}</p>
-                
-                {/* Action Button that slides up on hover */}
-                <div className="absolute bottom-8 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
-                  <span className="bg-[#3D2B1F] text-white px-8 py-3 rounded-full text-xs font-bold tracking-wider hover:bg-black transition-colors shadow-lg">
-                    اكتب رسالتك
-                  </span>
-                </div>
-              </div>
-            </div>
+      {stage !== "welcome" && (
+        <nav className="journey-progress" aria-label="Journey progress">
+          {t.progress.map((label, index) => (
+            <span key={label} className={"progress-step " + (currentProgress >= index ? "progress-complete" : "")}>
+              <i aria-hidden="true" />
+              <span>{label}</span>
+            </span>
           ))}
-        </div>
+        </nav>
       )}
 
-      {/* VIEW 2: THE LUXURY CUSTOMIZATION FORM */}
-      {isDrafting && selectedBouquet && (
-        <div className="max-w-6xl mx-auto relative z-10">
-          <button
-            onClick={() => {
-              setIsDrafting(false);
-              setGeneratedLink('');
-              setCurrentShortId('');
-              setIsCopied(false);
-            }}
-            className="text-xs text-[#8A7A6F] hover:text-[#3D2B1F] mb-10 flex items-center gap-2 transition-colors relative font-medium uppercase tracking-widest"
-          >
-            <span className="text-lg">←</span> ارجع للورد
-          </button>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-12 lg:gap-20 items-start">
-
-            {/* Left Column: Bouquet Showcase (Premium Glass Card) */}
-            <div className="animate-float flex justify-center sticky top-10">
-              <div className="bg-white/40 backdrop-blur-2xl p-8 rounded-[3rem] shadow-[0_20px_50px_rgba(160,100,80,0.1)] border border-white/60 w-full max-w-sm flex flex-col items-center relative overflow-hidden">
-                
-                {/* Decorative Elements */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-rose-200/30 rounded-full mix-blend-multiply blur-2xl"></div>
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-amber-100/30 rounded-full mix-blend-multiply blur-2xl"></div>
-
-                <div className="w-full h-64 bg-gradient-to-br from-white/60 to-white/10 rounded-t-[2rem] rounded-b-xl mb-6 flex items-center justify-center relative overflow-hidden shadow-[inset_0_2px_10px_rgba(255,255,255,0.8)] border border-white/50">
-                  <div className="absolute inset-0 bg-gradient-radial from-rose-50/50 to-transparent"></div>
-                  <img
-                    src={selectedBouquet.image}
-                    alt={selectedBouquet.name}
-                    className="w-48 h-48 object-contain drop-shadow-[0_15px_15px_rgba(160,100,80,0.3)] z-10 hover:scale-105 transition-transform duration-700"
-                  />
-                </div>
-                
-                <h3 className="text-[11px] text-[#C87E6F] font-bold uppercase tracking-[0.2em] mb-1">{selectedBouquet.name}</h3>
-                
-                <div className="w-full space-y-4 mt-4 relative z-10">
-                  <div className="bg-white/60 backdrop-blur-md p-5 rounded-2xl border border-white shadow-sm">
-                    <p className="text-[10px] text-[#C87E6F] font-bold mb-2 uppercase tracking-widest text-center">✨ الحكاية ✨</p>
-                    <p className="text-[12px] text-[#6B5548] text-center italic leading-relaxed font-serif" dir="rtl">{selectedBouquet.story}</p>
-                  </div>
-
-                  <div className="bg-[#FAF5F0]/80 backdrop-blur-md p-5 rounded-2xl border border-white shadow-sm">
-                    <p className="text-[10px] text-[#849F86] font-bold mb-2 uppercase tracking-widest text-center">✿ معنى الوردة ✿</p>
-                    <p className="text-[12px] text-[#6B5548] text-center leading-relaxed" dir="rtl">{selectedBouquet.meaning}</p>
-                  </div>
-                </div>
-              </div>
+      <section className={"story-stage stage-" + stage} id="top">
+        {stage === "welcome" && (
+          <div className="welcome-content">
+            <p className="eyebrow"><span className="eyebrow-line" />{t.eyebrow}<span className="eyebrow-line" /></p>
+            <div className="welcome-orb" aria-hidden="true">
+              <span className="orb-halo" />
+              <span className="orb-ring orb-ring-one" />
+              <span className="orb-ring orb-ring-two" />
+              <span className="orb-light" />
+              <span className="orb-shine" />
             </div>
+            <p className="dedication">{t.madeFor} <strong>Hajar</strong></p>
+            <h1>{t.welcomeTitle}</h1>
+            <p className="stage-description welcome-description">{t.welcomeText}</p>
+            <button className="primary-button" onClick={() => setStage("garden")}>
+              {t.enter}<span aria-hidden="true">→</span>
+            </button>
+            <p className="soft-caption">F A H D <span>·</span> A LITTLE WORLD FOR YOU</p>
+          </div>
+        )}
 
-            {/* Right Column: The Letter Editor */}
-            <div className="flex flex-col animate-in fade-in slide-in-from-right-8 duration-1000">
-              
-              <div className="text-right mb-10" dir="rtl">
-                <span className="text-[10px] text-[#8A7A6F] uppercase tracking-[0.2em] font-bold">رسالتك من القلب</span>
-                <h2 className="text-3xl md:text-4xl font-bold mt-2 text-[#3D2B1F] font-serif">
-                  أرسل <span className="text-[#C87E6F] italic">{selectedBouquet.name}</span>
-                </h2>
-              </div>
-
-              <div className="bg-[#FFFDF9] p-10 md:p-14 rounded-[3rem] shadow-[0_10px_40px_rgba(160,100,80,0.08)] border border-[#E8DDD3] relative mb-10 overflow-hidden">
-                
-                {/* Paper texture */}
-                <div className="absolute inset-0 bg-noise opacity-[0.03] pointer-events-none"></div>
-
-                <div className="flex flex-col space-y-10 z-10 relative px-2" dir="rtl">
-                  
-                  <div className="flex items-end gap-4">
-                    <label className="text-xl font-serif text-[#3D2B1F]">إلى</label>
-                    <input
-                      type="text"
-                      placeholder="لأغلى حد،"
-                      value={recipient}
-                      onChange={(e) => setRecipient(e.target.value)}
-                      readOnly={Boolean(generatedLink)}
-                      className={`flex-1 bg-transparent text-2xl font-serif text-[#6B5548] pb-2 transition-colors placeholder:text-[#D4B5A8] ${
-                        generatedLink
-                          ? 'border-none cursor-default text-[#3D2B1F] font-bold'
-                          : 'focus:text-[#3D2B1F] focus:outline-none border-b-2 border-dashed border-[#E8DDD3] focus:border-[#C87E6F]'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <textarea
-                      placeholder="اكتب اللي في قلبك هنا... سيب كلامك ينوّر زي الورد ده..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      readOnly={Boolean(generatedLink)}
-                      rows={5}
-                      className={`w-full bg-transparent text-lg md:text-xl font-serif leading-[2.2] text-[#6B5548] resize-none pb-2 transition-colors placeholder:text-[#D4B5A8] ${
-                        generatedLink
-                          ? 'border-none cursor-default italic'
-                          : 'focus:outline-none border-b-2 border-dashed border-[#E8DDD3] focus:border-[#C87E6F]'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col items-start pt-4">
-                    <label className="text-lg font-serif text-[#3D2B1F] mb-2">بكل حُب،</label>
-                    <input
-                      type="text"
-                      placeholder="المرسل"
-                      value={sender}
-                      onChange={(e) => setSender(e.target.value)}
-                      readOnly={Boolean(generatedLink)}
-                      className={`w-64 bg-transparent text-xl font-serif text-[#6B5548] pb-2 transition-colors placeholder:text-[#D4B5A8] ${
-                        generatedLink
-                          ? 'border-none cursor-default font-bold text-[#3D2B1F]'
-                          : 'focus:text-[#3D2B1F] focus:outline-none border-b-2 border-dashed border-[#E8DDD3] focus:border-[#C87E6F]'
-                      }`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Area */}
-              <div className="bg-white/60 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_8px_30px_rgba(160,100,80,0.06)] border border-white/60">
-                {!generatedLink ? (
-                  <div className={`flex flex-col ${isWhatsAppEnabled ? 'sm:flex-row' : ''} gap-4`}>
-                    {/* Primary Button: Send as WhatsApp Surprise (if enabled) */}
-                    {isWhatsAppEnabled && (
-                      <button
-                        onClick={handleOpenSurpriseModalFromEditor}
-                        disabled={isGenerateDisabled}
-                        className="flex-1 relative overflow-hidden group bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white px-8 py-5 rounded-full font-bold tracking-wide text-sm transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_25px_rgba(18,140,126,0.3)] hover:shadow-[0_15px_30px_rgba(18,140,126,0.4)] flex items-center justify-center gap-3 cursor-pointer"
-                      >
-                        <span className="text-lg">💐</span>
-                        <span className="relative z-10">أرسل كمفاجأة على واتساب</span>
-                        <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
-                      </button>
-                    )}
-
-                    {/* Secondary/Single Button: Generate Gift Link */}
-                    <button
-                      onClick={handleGenerateLink}
-                      disabled={isGenerateDisabled}
-                      className={`${isWhatsAppEnabled ? 'flex-1' : 'w-full'} relative overflow-hidden group bg-[#3D2B1F] text-white px-8 py-5 rounded-full font-bold tracking-widest uppercase text-sm transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_rgba(61,43,31,0.3)] hover:shadow-[0_15px_30px_rgba(61,43,31,0.4)] flex items-center justify-center gap-2 cursor-pointer`}
-                    >
-                      <span className="relative z-10">{isSaving ? 'بنجهّز هديتك...' : 'إنشاء رابط الهدية'}</span>
-                      <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center w-full animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4" dir="rtl">
-                    <div className="inline-flex items-center gap-2 bg-[#E8F3E9] text-[#849F86] px-4 py-1.5 rounded-full text-xs font-bold mb-1">
-                      <span>✓</span>
-                      <span>تم توثيق هديتك ورابطها جاهز</span>
-                    </div>
-                    
-                    {/* Link Copy Bar */}
-                    <div className="flex items-center bg-[#FFFDF9] border border-[#E8DDD3] rounded-2xl overflow-hidden shadow-inner p-1.5">
-                      <button
-                        onClick={handleCopyLink}
-                        className={`px-8 py-4 text-xs font-bold tracking-widest uppercase text-white rounded-xl transition-all duration-300 min-w-[140px] shadow-sm ${
-                          isCopied ? 'bg-[#849F86] hover:bg-[#728A74]' : 'bg-[#C87E6F] hover:bg-[#B56E5F]'
-                        }`}
-                      >
-                        {isCopied ? 'تم النسخ ✓' : 'نسخ الرابط'}
-                      </button>
-                      <input
-                        type="text"
-                        readOnly
-                        value={generatedLink}
-                        className="flex-1 p-4 text-sm text-[#8A7A6F] bg-transparent outline-none text-left font-mono"
-                        dir="ltr"
-                      />
-                    </div>
-
-                    <div className={`grid grid-cols-1 ${isWhatsAppEnabled ? 'sm:grid-cols-2' : ''} gap-3 pt-2`}>
-                      {/* Deliver on WhatsApp Surprise Button */}
-                      {isWhatsAppEnabled && (
-                        <button
-                          onClick={handleOpenSurpriseModalFromEditor}
-                          className="bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white py-3.5 px-5 rounded-2xl font-bold text-xs tracking-wide transition-all shadow-[0_8px_20px_rgba(18,140,126,0.25)] hover:shadow-[0_12px_28px_rgba(18,140,126,0.35)] flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <span>💌</span>
-                          <span>أرسل كمفاجأة واتساب</span>
-                        </button>
-                      )}
-
-                      {/* Create Another Bouquet Button */}
-                      <button
-                        onClick={() => {
-                          setIsDrafting(false);
-                          setSelectedBouquet(null);
-                          setGeneratedLink('');
-                          setCurrentShortId('');
-                          setRecipient('');
-                          setMessage('');
-                          setSender('');
-                          setIsCopied(false);
-                        }}
-                        className="bg-[#3D2B1F] hover:bg-black text-white py-3.5 px-5 rounded-2xl font-bold text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <span>🌸</span>
-                        <span>اصنع باقة جديدة</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+        {stage === "garden" && (
+          <div className="stage-card garden-content">
+            <p className="eyebrow"><span className="eyebrow-line" />01 — THE GARDEN<span className="eyebrow-line" /></p>
+            <h1>{t.gardenTitle}</h1>
+            <p className="stage-description">{t.gardenText}</p>
+            <div className="constellation-grid">
+              {t.stars.map((star, index) => (
+                <button
+                  key={star.title}
+                  className={"constellation-card " + (revealedStars.includes(index) ? "constellation-open" : "")}
+                  onClick={() => revealStar(index)}
+                  aria-expanded={revealedStars.includes(index)}
+                >
+                  <span className="constellation-number">{starSymbols[index]}</span>
+                  <span className="constellation-star" aria-hidden="true">✦</span>
+                  <span className="constellation-title">{star.title}</span>
+                  <span className="constellation-copy">{revealedStars.includes(index) ? star.text : t.opened + " " + starSymbols[index]}</span>
+                  <span className="constellation-hint">{revealedStars.includes(index) ? "—" : t.openStar}</span>
+                </button>
+              ))}
             </div>
-
+            <p className="progress-note">{revealedStars.length} / 3 {t.gardenProgress}</p>
+            <button className="primary-button" disabled={revealedStars.length !== 3} onClick={() => setStage("riddle")}>
+              {t.gardenContinue}<span aria-hidden="true">→</span>
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* VIEW 3: SENT GIFTS HISTORY */}
-      {!isDrafting && sentGifts.length > 0 && (
-        <div className="max-w-6xl mx-auto mt-32 relative z-10 animate-in fade-in duration-1000 mb-20">
-          <div className="flex items-center justify-center gap-4 mb-10">
-            <span className="w-12 h-px bg-[#D4B5A8]"></span>
-            <h2 className="text-2xl font-serif text-[#3D2B1F] tracking-wide" dir="rtl">سجل هداياك</h2>
-            <span className="w-12 h-px bg-[#D4B5A8]"></span>
+        {stage === "riddle" && (
+          <div className="stage-card riddle-content">
+            <p className="eyebrow"><span className="eyebrow-line" />02 — THE LITTLE RIDDLE<span className="eyebrow-line" /></p>
+            <div className="riddle-orbit" aria-hidden="true"><span>x</span><i>²</i></div>
+            <h1>{t.riddleTitle}</h1>
+            <p className="stage-description">{t.riddleText}</p>
+            <div className="equation-panel">
+              <span>{t.equationLabel}</span>
+              <strong>x<sup>2</sup> − 5x + 6 = 0</strong>
+            </div>
+            <div className="answer-grid">
+              {t.choices.map((choice, index) => (
+                <button key={choice} className={"answer-choice " + (answer === index ? "answer-selected" : "") + (answer === 1 && index === 1 ? " answer-correct" : "")} onClick={() => setAnswer(index)} aria-pressed={answer === index}>
+                  <span className="choice-letter">{String.fromCharCode(65 + index)}</span>
+                  {choice}
+                </button>
+              ))}
+            </div>
+            {answer !== null && (
+              <p className={"answer-feedback " + (answer === 1 ? "feedback-correct" : "feedback-wrong")} role="status">
+                {answer === 1 ? t.correctAnswer : t.wrongAnswer}
+              </p>
+            )}
+            <button className="primary-button" disabled={answer !== 1} onClick={() => setStage("bouquet")}>
+              {t.unlock}<span aria-hidden="true">→</span>
+            </button>
           </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sentGifts.map((gift) => (
-              <div key={gift.id} className="bg-white/40 backdrop-blur-xl p-6 rounded-[2rem] shadow-sm border border-white/60 flex flex-col transition-all hover:bg-white/60 hover:-translate-y-1 hover:shadow-md" dir="rtl">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className="text-[10px] text-[#C87E6F] font-bold uppercase tracking-widest mb-1">{gift.flowerName}</p>
-                    <p className="font-serif text-lg text-[#3D2B1F]">إلى: {gift.recipient}</p>
-                  </div>
-                  <span className="text-xs text-[#8A7A6F] font-light">
-                    {new Date(gift.date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
-                  </span>
-                </div>
-                
-                <div className="flex flex-col gap-2 mt-auto pt-4 border-t border-[#E8DDD3]/50">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/gift/${gift.id}`);
-                        alert('تم نسخ الرابط بنجاح!');
-                      }}
-                      className="flex-1 bg-transparent hover:bg-[#FDFBF7] text-[#849F86] border border-[#849F86]/30 px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
-                    >
-                      نسخ الرابط
-                    </button>
-                    <a
-                      href={`/gift/${gift.id}`}
-                      target="_blank"
-                      className="flex-1 flex justify-center items-center bg-[#C87E6F] hover:bg-[#B56E5F] text-white px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm"
-                    >
-                      عرض الهدية
-                    </a>
-                  </div>
+        {stage === "bouquet" && (
+          <div className="stage-card bouquet-content">
+            <p className="eyebrow"><span className="eyebrow-line" />03 — A GIFT FOR YOU<span className="eyebrow-line" /></p>
+            <div className="bouquet-frame">
+              <span className="bouquet-glow" />
+              <span className="floating-petal petal-one" />
+              <span className="floating-petal petal-two" />
+              <span className="floating-petal petal-three" />
+              <img src="/Quiet Love Bouquet.png" alt="A soft pink bouquet of flowers" className="bouquet-art" />
+            </div>
+            <h1>{t.bouquetTitle}</h1>
+            <p className="stage-description">{t.bouquetText}</p>
+            <button className="primary-button" onClick={() => setStage("letter")}>
+              {t.openLetter}<span aria-hidden="true">→</span>
+            </button>
+          </div>
+        )}
 
-                  {/* Send via WhatsApp button (if enabled) */}
-                  {isWhatsAppEnabled && (
-                    <button
-                      onClick={() => handleOpenSurpriseModalFromHistory(gift)}
-                      className="w-full bg-[#FAF5F0] hover:bg-[#E8F3E9] text-[#128C7E] border border-[#128C7E]/20 py-2.5 px-3 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                    >
-                      <span>أرسل كمفاجأة واتساب 💐</span>
-                    </button>
-                  )}
-                </div>
+        {stage === "letter" && (
+          <div className="letter-content">
+            <p className="eyebrow"><span className="eyebrow-line" />04 — THE LETTER<span className="eyebrow-line" /></p>
+            <div className="letter-card">
+              <div className="letter-top-rule"><span>✦</span></div>
+              <p className="letter-kicker">{t.letterEyebrow}</p>
+              <h1>{t.letterTitle}</h1>
+              {t.letterParagraphs.map((paragraph) => <p className="letter-paragraph" key={paragraph}>{paragraph}</p>)}
+              <div className="letter-signoff">
+                <span>{t.signoff}</span>
+                <strong>{t.sender}</strong>
               </div>
-            ))}
+              <div className="letter-seal" aria-hidden="true">F</div>
+            </div>
+            <button className="primary-button" onClick={() => setStage("ending")}>
+              {t.lastButton}<span aria-hidden="true">→</span>
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Surprise Delivery via WhatsApp Modal */}
-      {isWhatsAppEnabled && isSurpriseModalOpen && modalBouquet && (
-        <SurpriseDeliveryModal
-          isOpen={isSurpriseModalOpen}
-          onClose={() => setIsSurpriseModalOpen(false)}
-          bouquet={modalBouquet}
-          shortId={modalShortId || currentShortId}
-          initialRecipientName={modalRecipient || recipient}
-          senderName={sender}
-          messageText={message}
-          onSuccess={handleSurpriseSuccess}
-        />
-      )}
+        {stage === "ending" && (
+          <div className="ending-content">
+            <div className="ending-orbit" aria-hidden="true">
+              <span className="ending-star ending-star-a">✦</span>
+              <span className="ending-star ending-star-b">✧</span>
+              <span className="ending-star ending-star-c">✦</span>
+              <span className="ending-center">H</span>
+            </div>
+            <p className="eyebrow"><span className="eyebrow-line" />05 — THE SECRET<span className="eyebrow-line" /></p>
+            <h1>{t.endingTitle}</h1>
+            <p className="stage-description ending-description">{t.endingText}</p>
+            <p className="ending-final-line">{t.finalLine}</p>
+            <button className="quiet-button" onClick={restart}>{t.restart}</button>
+          </div>
+        )}
+      </section>
 
+      <footer className="universe-footer">
+        <span>{t.footer}</span>
+        <span className="footer-star" aria-hidden="true">✦</span>
+        <span>F.</span>
+      </footer>
     </main>
   );
 }
